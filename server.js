@@ -13,54 +13,83 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_SECRET
 });
 
-// Test route
+let transactions = {};
+
 app.get("/", (req, res) => {
-  res.send("SmartPay backend running");
+  res.send("SmartPay Backend Running");
 });
 
-// Create payment order
 app.post("/create-order", async (req, res) => {
+
   try {
 
     const amount = req.body.amount;
 
-    const options = {
+    const order = await razorpay.orders.create({
       amount: amount * 100,
       currency: "INR",
-      receipt: "order_" + Date.now()
+      receipt: "receipt_" + Date.now()
+    });
+
+    const transactionId = Date.now().toString();
+
+    transactions[transactionId] = {
+      orderId: order.id,
+      amount: amount,
+      paid: false
     };
 
-    const order = await razorpay.orders.create(options);
+    const upiLink =
+      "upi://pay?pa=kishorak142007@okicici&pn=SmartPayPlug&am=" +
+      amount +
+      "&cu=INR&tn=SmartPay";
 
-    res.json(order);
+    res.json({
+      success: true,
+      order: { orderId: order.id },
+      transaction: { id: transactionId },
+      paymentLink: { upiLink: upiLink }
+    });
 
   } catch (err) {
-    res.status(500).send(err);
+
+    res.json({
+      success: false,
+      error: err.message
+    });
+
   }
+
 });
 
-// Verify payment
-app.post("/verify-payment", (req, res) => {
+app.get("/check-payment-status", (req, res) => {
 
-  const { order_id, payment_id, signature } = req.body;
+  const transactionId = req.query.transactionId;
 
-  const body = order_id + "|" + payment_id;
+  const txn = transactions[transactionId];
 
-  const expectedSignature = crypto
-    .createHmac("sha256", process.env.RAZORPAY_SECRET)
-    .update(body)
-    .digest("hex");
-
-  if (expectedSignature === signature) {
-    res.json({ status: "success" });
-  } else {
-    res.json({ status: "failed" });
+  if (!txn) {
+    return res.json({
+      success: false,
+      paid: false
+    });
   }
+
+  res.json({
+    success: true,
+    paid: false,
+    transaction: {
+      id: transactionId,
+      amount: txn.amount,
+      port: 1,
+      duration: 10
+    }
+  });
 
 });
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log("Server running on port " + PORT);
 });
