@@ -12,6 +12,12 @@ const app = express();
 app.use(cors());
 
 /* ============================= */
+/* PREVENT DUPLICATE PAYMENTS */
+/* ============================= */
+
+const processedPayments = new Set();
+
+/* ============================= */
 /* 🔥 RAZORPAY WEBHOOK */
 /* ============================= */
 
@@ -45,8 +51,17 @@ app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (
     if (event === "payment.captured") {
       const payment = data.payload.payment.entity;
       const amount = payment.amount / 100;
+      const paymentId = payment.id;
 
       console.log("💰 PAYMENT SUCCESS:", amount, "INR");
+
+      /* 🔒 PREVENT DUPLICATE */
+      if (processedPayments.has(paymentId)) {
+        console.log("⚠️ Duplicate payment ignored");
+        return res.status(200).send("Duplicate");
+      }
+
+      processedPayments.add(paymentId);
 
       /* ============================= */
       /* 🔌 TIME-BASED RELAY LOGIC */
@@ -55,18 +70,16 @@ app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (
       try {
         let duration = 0;
 
-        if (amount === 10) {
-          duration = 10;
-        } else if (amount === 25) {
-          duration = 30;
-        } else if (amount === 50) {
-          duration = 60;
-        }
+        if (amount === 10) duration = 10;
+        else if (amount === 25) duration = 30;
+        else if (amount === 50) duration = 60;
 
         if (duration > 0) {
           const url = `http://10.187.207.18/relay?time=${duration}`;
 
-          await fetch(url);
+          console.log("👉 Calling ESP:", url);
+
+          await fetch(url, { timeout: 5000 });
 
           console.log(`⚡ ESP32 TRIGGERED for ${duration} seconds`);
         } else {
