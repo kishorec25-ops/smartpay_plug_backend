@@ -12,7 +12,7 @@ const app = express();
 app.use(cors());
 
 /* ============================= */
-/* 🔥 RAZORPAY WEBHOOK (FIRST) */
+/* 🔥 RAZORPAY WEBHOOK */
 /* ============================= */
 
 app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (req, res) => {
@@ -21,7 +21,7 @@ app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (
   try {
     const secret = "smartpay123";
 
-    const body = req.body; // RAW buffer
+    const body = req.body;
 
     const expectedSignature = crypto
       .createHmac("sha256", secret)
@@ -38,8 +38,8 @@ app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (
     console.log("✅ Signature verified");
 
     const data = JSON.parse(body.toString());
-
     const event = data.event;
+
     console.log("👉 Event:", event);
 
     if (event === "payment.captured") {
@@ -49,31 +49,33 @@ app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (
       console.log("💰 PAYMENT SUCCESS:", amount, "INR");
 
       /* ============================= */
-      /* 🔌 ESP32 TRIGGER LOGIC */
-/* ============================= */
+      /* 🔌 TIME-BASED RELAY LOGIC */
+      /* ============================= */
 
-try {
-  let url = "";
+      try {
+        let duration = 0;
 
-  if (amount === 10) {
-    url = "https://172.25.16.135/relay1";
-  } else if (amount === 25) {
-    url = "https://172.25.16.135/relay2";
-  } else if (amount === 50) {
-    url = "https://172.25.16.135/relay3";
-  }
+        if (amount === 10) {
+          duration = 10;
+        } else if (amount === 25) {
+          duration = 30;
+        } else if (amount === 50) {
+          duration = 60;
+        }
 
-  if (url) {
-    await fetch(url);
-    console.log("⚡ ESP32 TRIGGERED:", url);
-  } else {
-    console.log("⚠️ Unknown payment amount:", amount);
-  }
+        if (duration > 0) {
+          const url = `http://YOUR-ESP-IP/relay?time=${duration}`;
 
-} catch (err) {
-  console.log("❌ ESP32 ERROR:", err.message);
-}
+          await fetch(url);
 
+          console.log(`⚡ ESP32 TRIGGERED for ${duration} seconds`);
+        } else {
+          console.log("⚠️ Unknown payment amount:", amount);
+        }
+
+      } catch (err) {
+        console.log("❌ ESP32 ERROR:", err.message);
+      }
     }
 
     res.status(200).send("OK");
@@ -85,7 +87,7 @@ try {
 });
 
 /* ============================= */
-/* JSON MIDDLEWARE (AFTER WEBHOOK) */
+/* JSON MIDDLEWARE */
 /* ============================= */
 
 app.use(express.json());
