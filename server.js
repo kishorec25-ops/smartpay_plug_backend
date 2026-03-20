@@ -5,52 +5,75 @@ const fetch = require("node-fetch");
 
 const app = express();
 
+/* ============================= */
+/* MIDDLEWARE */
+/* ============================= */
+
 app.use(cors());
-app.use(express.json());
-
-/* TEST ROUTE */
-app.get("/", (req, res) => {
-  res.send("🚀 SmartPay Backend Running");
-});
 
 /* ============================= */
-/* 🔥 RAZORPAY WEBHOOK HANDLER */
+/* 🔥 RAZORPAY WEBHOOK (FIRST) */
 /* ============================= */
 
-app.post("/razorpay-webhook", async (req, res) => {
+app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  console.log("🔥 WEBHOOK HIT");
+
   try {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-    const shasum = crypto.createHmac("sha256", secret);
-    shasum.update(JSON.stringify(req.body));
-    const digest = shasum.digest("hex");
+    const body = req.body; // RAW buffer
 
-    const signature = req.headers["x-razorpay-signature"];
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(body)
+      .digest("hex");
 
-    if (digest !== signature) {
+    const receivedSignature = req.headers["x-razorpay-signature"];
+
+    if (expectedSignature !== receivedSignature) {
       console.log("❌ Invalid webhook signature");
       return res.status(400).send("Invalid signature");
     }
 
-    const event = req.body.event;
+    console.log("✅ Signature verified");
+
+    const data = JSON.parse(body.toString());
+
+    const event = data.event;
+    console.log("👉 Event:", event);
 
     if (event === "payment.captured") {
-      const payment = req.body.payload.payment.entity;
+      const payment = data.payload.payment.entity;
+      const amount = payment.amount / 100;
 
-      console.log("✅ Payment Received:", payment.amount / 100, "INR");
+      console.log("💰 PAYMENT SUCCESS:", amount, "INR");
 
       /* ============================= */
-      /* 🔌 TRIGGER ESP32 HERE */
-      /* ============================= */
+      /* 🔌 ESP32 TRIGGER LOGIC */
+/* ============================= */
 
-      try {
-        // ⚠️ REPLACE WITH YOUR ESP32 PUBLIC URL
-        await fetch("https://your-esp32-url/unlock");
+try {
+  let url = "";
 
-        console.log("⚡ ESP32 TRIGGERED SUCCESSFULLY");
-      } catch (err) {
-        console.log("❌ ESP32 ERROR:", err.message);
-      }
+  if (amount === 10) {
+    url = "https://your-esp32-url/relay1";
+  } else if (amount === 25) {
+    url = "https://your-esp32-url/relay2";
+  } else if (amount === 50) {
+    url = "https://your-esp32-url/relay3";
+  }
+
+  if (url) {
+    await fetch(url);
+    console.log("⚡ ESP32 TRIGGERED:", url);
+  } else {
+    console.log("⚠️ Unknown payment amount:", amount);
+  }
+
+} catch (err) {
+  console.log("❌ ESP32 ERROR:", err.message);
+}
+
     }
 
     res.status(200).send("OK");
@@ -59,6 +82,20 @@ app.post("/razorpay-webhook", async (req, res) => {
     console.log("❌ WEBHOOK ERROR:", err.message);
     res.status(500).send("Server Error");
   }
+});
+
+/* ============================= */
+/* JSON MIDDLEWARE (AFTER WEBHOOK) */
+/* ============================= */
+
+app.use(express.json());
+
+/* ============================= */
+/* TEST ROUTE */
+/* ============================= */
+
+app.get("/", (req, res) => {
+  res.send("🚀 SmartPay Backend Running");
 });
 
 /* ============================= */
