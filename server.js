@@ -79,8 +79,9 @@ app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (
 
           console.log("👉 Calling ESP:", url);
 
-          await fetch(url, { timeout: 5000 });
+          const response = await fetch(url);
 
+          console.log("ESP Response Status:", response.status);
           console.log(`⚡ ESP32 TRIGGERED for ${duration} seconds`);
         } else {
           console.log("⚠️ Unknown payment amount:", amount);
