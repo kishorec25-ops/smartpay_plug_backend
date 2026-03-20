@@ -19,7 +19,7 @@ app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (
   console.log("🔥 WEBHOOK HIT");
 
   try {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const secret = "smartpay123";
 
     const body = req.body; // RAW buffer
 
