@@ -56,11 +56,11 @@ try {
   let url = "";
 
   if (amount === 10) {
-    url = "https://your-esp32-url/relay1";
+    url = "https://172.25.16.135/relay1";
   } else if (amount === 25) {
-    url = "https://your-esp32-url/relay2";
+    url = "https://172.25.16.135/relay2";
   } else if (amount === 50) {
-    url = "https://your-esp32-url/relay3";
+    url = "https://172.25.16.135/relay3";
   }
 
   if (url) {
