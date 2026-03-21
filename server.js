@@ -6,6 +6,21 @@ const fetch = require("node-fetch");
 const app = express();
 
 /* ============================= */
+/* 🔧 CONFIG (ONLY CHANGE HERE) */
+/* ============================= */
+
+const CONFIG = {
+  ESP_IP: "10.187.207.135",   // 🔥 CHANGE ONLY THIS IN FUTURE
+  WEBHOOK_SECRET: "smartpay123",
+
+  AMOUNT_DURATION_MAP: {
+    10: 10,   // ₹10 → 10 sec
+    25: 30,   // ₹25 → 30 sec
+    50: 60    // ₹50 → 60 sec
+  }
+};
+
+/* ============================= */
 /* MIDDLEWARE */
 /* ============================= */
 
@@ -21,84 +36,83 @@ const processedPayments = new Set();
 /* 🔥 RAZORPAY WEBHOOK */
 /* ============================= */
 
-app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  console.log("🔥 WEBHOOK HIT");
+app.post(
+  "/razorpay-webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    console.log("🔥 WEBHOOK HIT");
 
-  try {
-    const secret = "smartpay123";
+    try {
+      const body = req.body;
 
-    const body = req.body;
+      const expectedSignature = crypto
+        .createHmac("sha256", CONFIG.WEBHOOK_SECRET)
+        .update(body)
+        .digest("hex");
 
-    const expectedSignature = crypto
-      .createHmac("sha256", secret)
-      .update(body)
-      .digest("hex");
+      const receivedSignature = req.headers["x-razorpay-signature"];
 
-    const receivedSignature = req.headers["x-razorpay-signature"];
-
-    if (expectedSignature !== receivedSignature) {
-      console.log("❌ Invalid webhook signature");
-      return res.status(400).send("Invalid signature");
-    }
-
-    console.log("✅ Signature verified");
-
-    const data = JSON.parse(body.toString());
-    const event = data.event;
-
-    console.log("👉 Event:", event);
-
-    if (event === "payment.captured") {
-      const payment = data.payload.payment.entity;
-      const amount = payment.amount / 100;
-      const paymentId = payment.id;
-
-      console.log("💰 PAYMENT SUCCESS:", amount, "INR");
-
-      /* 🔒 PREVENT DUPLICATE */
-      if (processedPayments.has(paymentId)) {
-        console.log("⚠️ Duplicate payment ignored");
-        return res.status(200).send("Duplicate");
+      if (expectedSignature !== receivedSignature) {
+        console.log("❌ Invalid webhook signature");
+        return res.status(400).send("Invalid signature");
       }
 
-      processedPayments.add(paymentId);
+      console.log("✅ Signature verified");
 
-      /* ============================= */
-      /* 🔌 TIME-BASED RELAY LOGIC */
-      /* ============================= */
+      const data = JSON.parse(body.toString());
+      const event = data.event;
 
-      try {
-        let duration = 0;
+      console.log("👉 Event:", event);
 
-        if (amount === 10) duration = 10;
-        else if (amount === 25) duration = 30;
-        else if (amount === 50) duration = 60;
+      if (event === "payment.captured") {
+        const payment = data.payload.payment.entity;
+        const amount = payment.amount / 100;
+        const paymentId = payment.id;
 
-        if (duration > 0) {
-          const url = `http://10.187.207.135/relay?time=${duration}`;
+        console.log("💰 PAYMENT SUCCESS:", amount, "INR");
+
+        /* 🔒 PREVENT DUPLICATE */
+        if (processedPayments.has(paymentId)) {
+          console.log("⚠️ Duplicate payment ignored");
+          return res.status(200).send("Duplicate");
+        }
+
+        processedPayments.add(paymentId);
+
+        /* ============================= */
+        /* 🔌 RELAY LOGIC */
+/* ============================= */
+
+        const duration = CONFIG.AMOUNT_DURATION_MAP[amount];
+
+        if (!duration) {
+          console.log("⚠️ Unknown payment amount:", amount);
+          return res.status(200).send("Ignored");
+        }
+
+        try {
+          const url = `http://${CONFIG.ESP_IP}/relay?time=${duration}`;
 
           console.log("👉 Calling ESP:", url);
 
           const response = await fetch(url);
 
-          console.log("ESP Response Status:", response.status);
-          console.log(`⚡ ESP32 TRIGGERED for ${duration} seconds`);
-        } else {
-          console.log("⚠️ Unknown payment amount:", amount);
+          console.log("ESP Status:", response.status);
+          console.log(`⚡ Relay ON for ${duration} seconds`);
+
+        } catch (err) {
+          console.log("❌ ESP ERROR:", err.message);
         }
-
-      } catch (err) {
-        console.log("❌ ESP32 ERROR:", err.message);
       }
+
+      res.status(200).send("OK");
+
+    } catch (err) {
+      console.log("❌ WEBHOOK ERROR:", err.message);
+      res.status(500).send("Server Error");
     }
-
-    res.status(200).send("OK");
-
-  } catch (err) {
-    console.log("❌ WEBHOOK ERROR:", err.message);
-    res.status(500).send("Server Error");
   }
-});
+);
 
 /* ============================= */
 /* JSON MIDDLEWARE */
