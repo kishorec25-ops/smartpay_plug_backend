@@ -75,7 +75,7 @@ app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (
         else if (amount === 50) duration = 60;
 
         if (duration > 0) {
-          const url = `http://10.187.207.18/relay?time=${duration}`;
+          const url = `http://10.187.207.135/relay?time=${duration}`;
 
           console.log("👉 Calling ESP:", url);
 
