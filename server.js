@@ -10,7 +10,7 @@ const app = express();
 /* ============================= */
 
 const CONFIG = {
-  ESP_IP: "10.187.207.135",   // 🔥 CHANGE ONLY THIS IN FUTURE
+  ESP_IP: "10.187.207.240",   // 🔥 CHANGE ONLY THIS IN FUTURE
   WEBHOOK_SECRET: "smartpay123",
 
   AMOUNT_DURATION_MAP: {
