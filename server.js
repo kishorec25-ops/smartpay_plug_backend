@@ -40,13 +40,14 @@ app.post(
 "/razorpay-webhook",
 express.raw({ type: "application/json" }),
 async (req, res) => {
-console.log("🔥 WEBHOOK HIT");
 
 ```
+console.log("🔥 WEBHOOK HIT");
+
 try {
   const body = req.body;
 
-  /* 🔐 VERIFY SIGNATURE */
+  // 🔐 VERIFY SIGNATURE
   const expectedSignature = crypto
     .createHmac("sha256", CONFIG.WEBHOOK_SECRET)
     .update(body)
@@ -67,13 +68,14 @@ try {
   console.log("👉 Event:", event);
 
   if (event === "payment.captured") {
+
     const payment = data.payload.payment.entity;
     const amount = payment.amount / 100;
     const paymentId = payment.id;
 
     console.log("💰 PAYMENT SUCCESS:", amount, "INR");
 
-    /* 🔒 PREVENT DUPLICATE */
+    // 🔒 PREVENT DUPLICATE
     if (processedPayments.has(paymentId)) {
       console.log("⚠️ Duplicate payment ignored");
       return res.status(200).send("Duplicate");
@@ -81,7 +83,7 @@ try {
 
     processedPayments.add(paymentId);
 
-    /* 🔌 MAP AMOUNT → TIME */
+    // 🔌 MAP AMOUNT → TIME
     const duration = CONFIG.AMOUNT_DURATION_MAP[amount];
 
     if (!duration) {
@@ -91,17 +93,19 @@ try {
 
     console.log("🧠 Duration selected:", duration, "seconds");
 
-    /* 🔌 CALL ESP32 */
+    // 🔌 CALL ESP32
     try {
       const url = `http://${CONFIG.ESP_IP}/relay?time=${duration}`;
       console.log("👉 Calling ESP:", url);
 
-      const response = await fetch(url, { timeout: 5000 });
+      const response = await fetch(url);
+
+      console.log("ESP Status:", response.status);
 
       if (response.status === 200) {
         console.log(`⚡ Relay ON for ${duration} seconds`);
       } else {
-        console.log("⚠️ ESP responded with status:", response.status);
+        console.log("⚠️ ESP responded with error");
       }
 
     } catch (err) {
@@ -119,12 +123,6 @@ try {
 
 }
 );
-
-/* ============================= */
-/* JSON MIDDLEWARE */
-/* ============================= */
-
-app.use(express.json());
 
 /* ============================= */
 /* TEST ROUTE */
