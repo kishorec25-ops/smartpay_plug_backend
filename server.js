@@ -10,7 +10,7 @@ const app = express();
 /* ============================= */
 
 const CONFIG = {
-  ESP_IP: "http://10.184.181.138",   // ✅ YOUR ESP IP
+  ESP_IP: "10.184.181.138",   // ✅ YOUR ESP IP
   WEBHOOK_SECRET: "smartpay123",
 
   AMOUNT_DURATION_MAP: {
@@ -92,7 +92,7 @@ app.post(
 
         /* 🔌 CALL ESP32 */
         try {
-          const url = `http://${CONFIG.ESP_IP}/relay?time=${duration}`;
+          const url = `http://${CONFIG.ESP_IP}/relay?time=${duration}&ch=1`;
           console.log("👉 Calling ESP:", url);
 
           const response = await fetch(url, { timeout: 5000 });
