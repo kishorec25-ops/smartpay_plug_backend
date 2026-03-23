@@ -91,7 +91,7 @@ app.post(
         }
 
         try {
-          const url = `http://${CONFIG.ESP_IP}/relay?time=${duration}`;
+          const url = `http://10.187.207.240/relay?time=${duration}`;
 
           console.log("👉 Calling ESP:", url);
 
