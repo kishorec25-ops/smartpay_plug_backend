@@ -6,11 +6,11 @@ const fetch = require("node-fetch");
 const app = express();
 
 /* ============================= */
-/* 🔧 CONFIG (ONLY CHANGE HERE) */
+/* 🔧 CONFIG */
 /* ============================= */
 
 const CONFIG = {
-  ESP_IP: "10.187.207.240",   // 🔥 CHANGE ONLY THIS IN FUTURE
+  ESP_IP: "10.187.207.240",   // ✅ YOUR ESP IP
   WEBHOOK_SECRET: "smartpay123",
 
   AMOUNT_DURATION_MAP: {
@@ -45,6 +45,7 @@ app.post(
     try {
       const body = req.body;
 
+      /* 🔐 VERIFY SIGNATURE */
       const expectedSignature = crypto
         .createHmac("sha256", CONFIG.WEBHOOK_SECRET)
         .update(body)
@@ -79,10 +80,7 @@ app.post(
 
         processedPayments.add(paymentId);
 
-        /* ============================= */
-        /* 🔌 RELAY LOGIC */
-/* ============================= */
-
+        /* 🔌 MAP AMOUNT → TIME */
         const duration = CONFIG.AMOUNT_DURATION_MAP[amount];
 
         if (!duration) {
@@ -90,15 +88,20 @@ app.post(
           return res.status(200).send("Ignored");
         }
 
-        try {
-          const url = `http://10.187.207.240/relay?time=${duration}`;
+        console.log("🧠 Duration selected:", duration, "seconds");
 
+        /* 🔌 CALL ESP32 */
+        try {
+          const url = `http://${CONFIG.ESP_IP}/relay?time=${duration}`;
           console.log("👉 Calling ESP:", url);
 
-          const response = await fetch(url);
+          const response = await fetch(url, { timeout: 5000 });
 
-          console.log("ESP Status:", response.status);
-          console.log(`⚡ Relay ON for ${duration} seconds`);
+          if (response.status === 200) {
+            console.log(`⚡ Relay ON for ${duration} seconds`);
+          } else {
+            console.log("⚠️ ESP responded with status:", response.status);
+          }
 
         } catch (err) {
           console.log("❌ ESP ERROR:", err.message);
