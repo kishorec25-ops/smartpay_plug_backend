@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const app = express();
 
 const CONFIG = {
-  ESP_IP: "10.187.207.240",
+  ESP_IP: "10.138.103.240",
   WEBHOOK_SECRET: "smartpay123",
   AMOUNT_DURATION_MAP: {
     10: 10,
