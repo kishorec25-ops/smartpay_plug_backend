@@ -7,15 +7,10 @@ const app = express();
 /* ================= CONFIG ================= */
 
 const CONFIG = {
-  KEY_ID: "rzp_test_SaUdD9E3AgCb2a",
+  KEY_ID: process.env.RAZORPAY_KEY_ID,
+  KEY_SECRET: process.env.RAZORPAY_SECRET,
+  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
 
-  // 🔴 PUT YOUR RAZORPAY SECRET HERE
-  KEY_SECRET: "SSOHyGDkLbJL15iAUp60dER9",
-
-  // 🔴 SAME SECRET YOU SET IN RAZORPAY WEBHOOK
-  WEBHOOK_SECRET: "smartpay123",
-
-  // 🔴 YOUR ESP DEVICE IP
   ESP_IP: "10.138.103.240",
 
   AMOUNT_DURATION_MAP: {
@@ -29,18 +24,17 @@ const CONFIG = {
 
 app.use(cors());
 
-/* ================= WEBHOOK (VERY IMPORTANT FIRST) ================= */
+/* ================= WEBHOOK (MUST BE FIRST) ================= */
 
 app.post(
   "/razorpay-webhook",
-  express.raw({ type: "application/json" }), // ✅ MUST BE RAW
+  express.raw({ type: "application/json" }),
   async (req, res) => {
     console.log("🔥 WEBHOOK HIT");
 
     try {
-      const body = req.body; // Buffer
+      const body = req.body;
 
-      /* ===== VERIFY SIGNATURE ===== */
       const expectedSignature = crypto
         .createHmac("sha256", CONFIG.WEBHOOK_SECRET)
         .update(body)
@@ -57,16 +51,13 @@ app.post(
 
       const data = JSON.parse(body.toString());
 
-      /* ===== HANDLE PAYMENT ===== */
       if (data.event === "payment.captured") {
-
         const payment = data.payload.payment.entity;
 
         const amount = payment.amount / 100;
         const paymentId = payment.id;
 
-        console.log("💰 Payment received:", amount);
-        console.log("🆔 Payment ID:", paymentId);
+        console.log("💰 Payment:", amount, "ID:", paymentId);
 
         const duration = CONFIG.AMOUNT_DURATION_MAP[amount];
 
@@ -75,20 +66,17 @@ app.post(
           return res.send("Ignored");
         }
 
-        console.log("⏱ Duration:", duration, "seconds");
+        console.log("⏱ Duration:", duration);
 
-        /* ===== ESP CONTROL ===== */
         try {
           const url = `http://${CONFIG.ESP_IP}/relay?time=${duration}`;
-          console.log("👉 Sending to ESP:", url);
+          console.log("👉 ESP:", url);
 
           const response = await fetch(url);
 
-          if (!response.ok) {
-            throw new Error("ESP not responding");
-          }
+          if (!response.ok) throw new Error("ESP failed");
 
-          console.log("✅ ESP triggered successfully");
+          console.log("✅ ESP triggered");
 
         } catch (err) {
           console.log("❌ ESP ERROR:", err.message);
@@ -114,11 +102,7 @@ app.post("/create-order", async (req, res) => {
   try {
     const { amount } = req.body;
 
-    const orderData = {
-      amount: amount * 100,
-      currency: "INR",
-      receipt: "rcpt_" + Date.now()
-    };
+    console.log("📥 Order request:", amount);
 
     const auth = Buffer.from(
       CONFIG.KEY_ID + ":" + CONFIG.KEY_SECRET
@@ -130,12 +114,16 @@ app.post("/create-order", async (req, res) => {
         "Content-Type": "application/json",
         Authorization: `Basic ${auth}`
       },
-      body: JSON.stringify(orderData)
+      body: JSON.stringify({
+        amount: amount * 100,
+        currency: "INR",
+        receipt: "rcpt_" + Date.now()
+      })
     });
 
     const data = await response.json();
 
-    console.log("🧾 Order created:", data.id);
+    console.log("📦 Razorpay response:", data);
 
     res.json(data);
 
@@ -153,6 +141,8 @@ app.get("/", (req, res) => {
 
 /* ================= START ================= */
 
-app.listen(3000, () => {
-  console.log("🔥 Server running on http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🔥 Server running on ${PORT}`);
 });
