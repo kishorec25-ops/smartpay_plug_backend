@@ -18,36 +18,25 @@ const CONFIG = {
 
 app.use(cors());
 
-/* IMPORTANT: RAW for webhook */
+/* ✅ IMPORTANT FIX */
 app.use("/razorpay-webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 
-/* TEMP STORAGE */
-const orders = new Map();
+/* MEMORY */
 const processedPayments = new Set();
 
-/* ================= CREATE ORDER ================= */
-
+/* ================= CREATE ORDER (MISSING PART) ================= */
 app.post("/create-order", (req, res) => {
   const { amount, email } = req.body;
 
-  const orderId = "order_" + Date.now();
-
-  orders.set(orderId, {
-    amount,
-    email
-  });
-
-  console.log("🧾 Order created:", orderId, amount, email);
+  console.log("🧾 Order:", amount, email);
 
   res.json({
-    orderId,
-    amount
+    success: true
   });
 });
 
 /* ================= WEBHOOK ================= */
-
 app.post("/razorpay-webhook", async (req, res) => {
   console.log("🔥 WEBHOOK HIT");
 
@@ -66,11 +55,13 @@ app.post("/razorpay-webhook", async (req, res) => {
       return res.status(400).send("Invalid");
     }
 
+    console.log("✅ Signature verified");
+
     const data = JSON.parse(body.toString());
 
     if (data.event === "payment.captured") {
-      const payment = data.payload.payment.entity;
 
+      const payment = data.payload.payment.entity;
       const amount = payment.amount / 100;
       const paymentId = payment.id;
 
@@ -84,7 +75,6 @@ app.post("/razorpay-webhook", async (req, res) => {
 
       const duration = CONFIG.AMOUNT_DURATION_MAP[amount];
 
-      /* ESP */
       try {
         await fetch(`http://${CONFIG.ESP_IP}/relay?time=${duration}`);
         console.log("⚡ ESP triggered");
@@ -101,6 +91,9 @@ app.post("/razorpay-webhook", async (req, res) => {
   }
 });
 
-/* ================= START ================= */
+/* HEALTH */
+app.get("/", (req, res) => {
+  res.send("🚀 SmartPay Backend Running");
+});
 
-app.listen(3000, () => console.log("🔥 Backend running"));
+app.listen(3000, () => console.log("🔥 Running on 3000"));
