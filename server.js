@@ -9,7 +9,7 @@ const app = express();
 const CONFIG = {
   KEY_ID: process.env.RAZORPAY_KEY_ID,
   KEY_SECRET: process.env.RAZORPAY_SECRET,
-  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET, // ✅ FIXED
 
   ESP_IP: "10.138.103.240",
 
@@ -24,7 +24,7 @@ const CONFIG = {
 
 app.use(cors());
 
-/* ================= WEBHOOK (MUST BE FIRST) ================= */
+/* ================= WEBHOOK ================= */
 
 app.post(
   "/razorpay-webhook",
@@ -33,6 +33,15 @@ app.post(
     console.log("🔥 WEBHOOK HIT");
 
     try {
+
+      console.log("🔐 WEBHOOK SECRET:", CONFIG.WEBHOOK_SECRET);
+
+      // ❌ If secret missing → stop
+      if (!CONFIG.WEBHOOK_SECRET) {
+        console.log("❌ Webhook secret missing");
+        return res.status(500).send("Webhook secret not set");
+      }
+
       const body = req.body;
 
       const expectedSignature = crypto
@@ -92,7 +101,7 @@ app.post(
   }
 );
 
-/* ================= JSON (AFTER WEBHOOK) ================= */
+/* ================= JSON ================= */
 
 app.use(express.json());
 
@@ -100,9 +109,12 @@ app.use(express.json());
 
 app.post("/create-order", async (req, res) => {
   try {
+
     const { amount } = req.body;
 
     console.log("📥 Order request:", amount);
+    console.log("🔑 KEY_ID:", CONFIG.KEY_ID);
+    console.log("🔑 KEY_SECRET:", CONFIG.KEY_SECRET ? "LOADED" : "MISSING");
 
     const auth = Buffer.from(
       CONFIG.KEY_ID + ":" + CONFIG.KEY_SECRET
