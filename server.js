@@ -1,5 +1,3 @@
-require("dotenv").config();
-
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
@@ -8,10 +6,14 @@ const app = express();
 
 /* ================= CONFIG ================= */
 
+// 👉 Works in BOTH:
+// Local → uses hardcoded
+// Railway → uses env if available
+
 const CONFIG = {
-  KEY_ID: process.env.RAZORPAY_KEY_ID,
-  KEY_SECRET: process.env.RAZORPAY_SECRET,
-  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+  KEY_ID: process.env.RAZORPAY_KEY_ID || "rzp_test_SaUdD9E3AgCb2a",
+  KEY_SECRET: process.env.RAZORPAY_SECRET || "SSOHyGDkLbJL15iAUp60dER9",
+  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || "smartpay123",
 
   ESP_IP: "10.138.103.240",
 
@@ -36,11 +38,6 @@ app.post(
 
     try {
       console.log("🔐 WEBHOOK SECRET:", CONFIG.WEBHOOK_SECRET);
-
-      if (!CONFIG.WEBHOOK_SECRET) {
-        console.log("❌ Webhook secret missing");
-        return res.status(500).send("Webhook secret not set");
-      }
 
       const body = req.body;
 
@@ -112,12 +109,6 @@ app.post("/create-order", async (req, res) => {
     const { amount } = req.body;
 
     console.log("📥 Order request:", amount);
-    console.log("🔑 KEY_ID:", CONFIG.KEY_ID);
-    console.log("🔑 KEY_SECRET:", CONFIG.KEY_SECRET ? "LOADED" : "MISSING");
-
-    if (!CONFIG.KEY_ID || !CONFIG.KEY_SECRET) {
-      return res.status(500).json({ error: "Keys missing" });
-    }
 
     const auth = Buffer.from(
       CONFIG.KEY_ID + ":" + CONFIG.KEY_SECRET
