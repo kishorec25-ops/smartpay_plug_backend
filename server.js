@@ -6,10 +6,6 @@ const app = express();
 
 /* ================= CONFIG ================= */
 
-// 👉 Works in BOTH:
-// Local → uses hardcoded
-// Railway → uses env if available
-
 const CONFIG = {
   KEY_ID: process.env.RAZORPAY_KEY_ID || "rzp_test_SaUdD9E3AgCb2a",
   KEY_SECRET: process.env.RAZORPAY_SECRET || "SSOHyGDkLbJL15iAUp60dER9",
@@ -27,6 +23,10 @@ const CONFIG = {
 /* ================= MIDDLEWARE ================= */
 
 app.use(cors());
+
+/* ================= DUPLICATE MEMORY ================= */
+
+const processedPayments = new Set();
 
 /* ================= WEBHOOK ================= */
 
@@ -64,6 +64,15 @@ app.post(
         const paymentId = payment.id;
 
         console.log("💰 Payment:", amount, "ID:", paymentId);
+
+        /* 🔴 DUPLICATE CHECK */
+        if (processedPayments.has(paymentId)) {
+          console.log("⚠️ Duplicate payment ignored:", paymentId);
+          return res.send("Duplicate");
+        }
+
+        /* ✅ MARK AS PROCESSED */
+        processedPayments.add(paymentId);
 
         const duration = CONFIG.AMOUNT_DURATION_MAP[amount];
 
