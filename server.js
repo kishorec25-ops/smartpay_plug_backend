@@ -39,7 +39,8 @@ const processedPayments = new Set();
 
 app.post("/razorpay-webhook", express.raw({ type: "application/json" }), async (req, res) => {
   try {
-    const body = req.body;
+    // ✅ FIXED LINE (only change)
+    const body = req.body instanceof Buffer ? req.body : Buffer.from(JSON.stringify(req.body));
 
     const expectedSignature = crypto
       .createHmac("sha256", CONFIG.WEBHOOK_SECRET)
