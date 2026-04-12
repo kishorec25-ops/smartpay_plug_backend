@@ -11,7 +11,7 @@ const app = express();
 const CONFIG = {
   KEY_ID: process.env.RAZORPAY_KEY_ID,
   KEY_SECRET: process.env.RAZORPAY_SECRET,
-  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || "smartpay123",
   ESP_IP: process.env.ESP_IP || "10.200.188.240",
 
   AMOUNT_DURATION_MAP: {
@@ -24,6 +24,7 @@ const CONFIG = {
 /* ================= DEBUG ================= */
 console.log("🚀 Server starting...");
 console.log("KEY_ID:", CONFIG.KEY_ID ? "Loaded ✅" : "Missing ❌");
+console.log("WEBHOOK_SECRET:", CONFIG.WEBHOOK_SECRET ? "Loaded ✅" : "Missing ❌");
 
 /* ================= MIDDLEWARE ================= */
 
