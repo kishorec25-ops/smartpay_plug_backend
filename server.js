@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
@@ -7,11 +9,10 @@ const app = express();
 /* ================= CONFIG ================= */
 
 const CONFIG = {
-  KEY_ID: process.env.RAZORPAY_KEY_ID || "rzp_test_SaUdD9E3AgCb2a",
-  KEY_SECRET: process.env.RAZORPAY_SECRET || "SSOHyGDkLbJL15iAUp60dER9",
-  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || "smartpay123",
-
-  ESP_IP: "10.200.188.240",
+  KEY_ID: process.env.RAZORPAY_KEY_ID,
+  KEY_SECRET: process.env.RAZORPAY_SECRET,
+  WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+  ESP_IP: process.env.ESP_IP,
 
   AMOUNT_DURATION_MAP: {
     10: 10,
@@ -34,11 +35,7 @@ app.post(
   "/razorpay-webhook",
   express.raw({ type: "application/json" }),
   async (req, res) => {
-    console.log("🔥 WEBHOOK HIT");
-
     try {
-      console.log("🔐 WEBHOOK SECRET:", CONFIG.WEBHOOK_SECRET);
-
       const body = req.body;
 
       const expectedSignature = crypto
@@ -65,13 +62,11 @@ app.post(
 
         console.log("💰 Payment:", amount, "ID:", paymentId);
 
-        /* 🔴 DUPLICATE CHECK */
         if (processedPayments.has(paymentId)) {
-          console.log("⚠️ Duplicate payment ignored:", paymentId);
+          console.log("⚠️ Duplicate ignored");
           return res.send("Duplicate");
         }
 
-        /* ✅ MARK AS PROCESSED */
         processedPayments.add(paymentId);
 
         const duration = CONFIG.AMOUNT_DURATION_MAP[amount];
@@ -92,7 +87,6 @@ app.post(
           if (!response.ok) throw new Error("ESP failed");
 
           console.log("✅ ESP triggered");
-
         } catch (err) {
           console.log("❌ ESP ERROR:", err.message);
         }
@@ -107,17 +101,13 @@ app.post(
   }
 );
 
-/* ================= JSON ================= */
+/* ================= CREATE ORDER ================= */
 
 app.use(express.json());
-
-/* ================= CREATE ORDER ================= */
 
 app.post("/create-order", async (req, res) => {
   try {
     const { amount } = req.body;
-
-    console.log("📥 Order request:", amount);
 
     const auth = Buffer.from(
       CONFIG.KEY_ID + ":" + CONFIG.KEY_SECRET
@@ -137,8 +127,6 @@ app.post("/create-order", async (req, res) => {
     });
 
     const data = await response.json();
-
-    console.log("📦 Razorpay response:", data);
 
     res.json(data);
 
